@@ -27,4 +27,23 @@ describe("resizeImage", () => {
     });
     expect(fs.existsSync(outputPath)).toBeTrue();
   });
+
+  it("should throw error if image does not exist", async () => {
+    const width = 100;
+    const height = 100;
+    const fakeImg = path.join(
+      path.resolve(__dirname, ".."),
+      "img",
+      "notfound.jpg"
+    );
+    await expectAsync(
+      resizeImage({
+        inputPath: fakeImg,
+        outputFolder,
+        width,
+        height,
+        outputFileName: "notfound_resized.jpg",
+      })
+    ).toBeRejectedWithError(/Input file is missing/);
+  });
 });
