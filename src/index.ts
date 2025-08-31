@@ -21,13 +21,28 @@ app.get("/api", (req: Request, res: Response) => {
 });
 // Endpoint to crop image and save to thumb folder
 //simple url to use:
-//http://localhost:3000/api/crop?filename=palmtunnel.jpg&width=200&height=200
-app.get("/api/crop", async (req: Request, res: Response) => {
+//http://localhost:3000/api/images?filename=palmtunnel.jpg&width=200&height=200
+app.get("/api/images", async (req: Request, res: Response) => {
   const { filename, width, height } = req.query;
 
-  if (!filename || !width || !height) {
+  if (!filename) {
     return res.status(400).json({
-      error: "Missing required query parameters: filename, width, height",
+      error: "Missing required query parameters: filename",
+    });
+  }
+  if (!width && !height) {
+    return res.status(400).json({
+      error: "Missing required query parameters:  width, height",
+    });
+  }
+  if (!width) {
+    return res.status(400).json({
+      error: "Missing required query parameters:  width",
+    });
+  }
+  if (!height) {
+    return res.status(400).json({
+      error: "Missing required query parameters:  height",
     });
   }
 
