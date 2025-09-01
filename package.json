@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": "20.19.4",
+    "npm": ">=10.0.0"
+  },
+  "engineStrict": true,
   "scripts": {
     "build": "tsc",
     "start": "nodemon --exec ts-node --transpile-only ./src/index.ts",
