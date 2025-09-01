@@ -2,7 +2,7 @@ import sharp from "sharp";
 import path from "path";
 import fs from "fs";
 
-interface ResizeOptions {
+export interface ResizeOptions {
   inputPath: string;
   outputFolder: string;
   width: number;

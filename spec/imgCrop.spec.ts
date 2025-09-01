@@ -1,4 +1,4 @@
-import { resizeImage } from "../src/imgCrop";
+import { resizeImage } from "../src/imgCrop.js";
 import fs from "fs";
 import path from "path";
 

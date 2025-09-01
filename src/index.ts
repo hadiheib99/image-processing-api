@@ -1,7 +1,8 @@
 import express, { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
-import { resizeImage } from "./imgCrop";
+// import { fileURLToPath } from "url";
+import { resizeImage } from "./imgCrop.js";
 
 const app = express();
 const port = 3000;
@@ -19,30 +20,15 @@ app.get("/", (req: Request, res: Response) => {
 app.get("/api", (req: Request, res: Response) => {
   res.status(200).json({ message: "API is working fine!" });
 });
-// Endpoint to crop image and save to thumb folder
-//simple url to use:
-//http://localhost:3000/api/images?filename=palmtunnel.jpg&width=200&height=200
+// Endpoint to process and resize image, then save to thumb folder
+// Example usage:
+// http://localhost:3000/api/images?filename=palmtunnel.jpg&width=200&height=200
 app.get("/api/images", async (req: Request, res: Response) => {
   const { filename, width, height } = req.query;
 
-  if (!filename) {
+  if (!filename || !width || !height) {
     return res.status(400).json({
-      error: "Missing required query parameters: filename",
-    });
-  }
-  if (!width && !height) {
-    return res.status(400).json({
-      error: "Missing required query parameters:  width, height",
-    });
-  }
-  if (!width) {
-    return res.status(400).json({
-      error: "Missing required query parameters:  width",
-    });
-  }
-  if (!height) {
-    return res.status(400).json({
-      error: "Missing required query parameters:  height",
+      error: "Missing required query parameters: filename, width, height",
     });
   }
 
@@ -56,12 +42,8 @@ app.get("/api/images", async (req: Request, res: Response) => {
   const outputPath = path.join(thumbDir, outputFilename);
 
   try {
-    // Ensure thumb directory exists
     await fs.promises.mkdir(thumbDir, { recursive: true });
-
-    // Check if input file exists
     await fs.promises.access(inputPath, fs.constants.F_OK);
-
     await resizeImage({
       inputPath,
       outputFolder: thumbDir,

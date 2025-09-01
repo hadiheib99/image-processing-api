@@ -49,4 +49,18 @@ describe("API Endpoints", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toMatch(/image/);
   });
+
+  it("should return 404 and error message if image does not exist", async () => {
+    const res = await request(app).get(
+      "/api/images?filename=notfound.jpg&width=200&height=200"
+    );
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("Input image not found.");
+  });
+
+  it("should return 400 and error message if required query params are missing", async () => {
+    const res = await request(app).get("/api/images");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Missing required query parameters");
+  });
 });

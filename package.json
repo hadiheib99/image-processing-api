@@ -10,17 +10,19 @@
   "engineStrict": true,
   "scripts": {
     "build": "tsc",
-    "start": "nodemon --exec ts-node --transpile-only ./src/index.ts",
+    "start": "nodemon --exec node --loader ts-node/esm ./src/index.ts",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "test": "jasmine --config=jasmine.json"
+    "test:spec": "tsc -p tsconfig.test.json && jasmine --config=jasmine.json",
+    "test": "npm run test:spec",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "dotenv": "^17.2.1",
-    "eslint": "^9.34.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "express": "^5.1.0",
@@ -33,10 +35,12 @@
     "@types/jasmine": "^5.1.9",
     "@types/sharp": "^0.31.1",
     "@types/supertest": "^6.0.3",
+    "eslint": "^9.34.0",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0"
   }
 }
