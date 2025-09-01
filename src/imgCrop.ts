@@ -36,7 +36,7 @@ export async function resizeImage(options: ResizeOptions): Promise<string> {
 // Async function to check if an image exists in a folder
 export async function imageExistsAsync(
   folderPath: string,
-  imageName: string
+  imageName: string,
 ): Promise<boolean> {
   const imagePath = path.join(folderPath, imageName);
   try {
