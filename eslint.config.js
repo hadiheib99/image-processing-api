@@ -2,30 +2,19 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default [
+  { ignores: ["build/**", "dist/**", "spec/helpers/**", "src/**/*.js"] }, // ignore JS files
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ["**/*.ts"],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: {
-        project: "./tsconfig.json",
-      },
-      globals: {
-        require: "readonly",
-        exports: "readonly",
-        console: "readonly",
-      },
+      parserOptions: { project: "./tsconfig.json" },
+      sourceType: "module",
     },
     rules: {
-      "@typescript-eslint/no-require-imports": "off", // allow require()
+      // optional quality-of-life
+      "no-console": "off",
     },
   },
-];
-
-export const ignores = [
-  "build/",
-  "dist/",
-  "node_modules/",
-  "spec/helpers/", // optional: only if you don’t want to lint helpers
 ];

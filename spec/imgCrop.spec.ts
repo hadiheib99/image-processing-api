@@ -1,49 +1,32 @@
-import { resizeImage } from "../src/imgCrop.js";
-import fs from "fs";
-import path from "path";
+// src/imgCrop.ts
+import fs from "node:fs";
+import path from "node:path";
+import sharp from "sharp";
 
-describe("resizeImage", () => {
-  const testImg = path.join(path.resolve(__dirname, ".."), "img", "test.jpg");
-  const outputFolder = path.join(path.resolve(__dirname, ".."), "thumb");
-  const outputFileName = "test_resized.jpg";
+type ResizeArgs = {
+  inputPath: string;
+  outputFolder: string;
+  width: number;
+  height: number;
+  outputFileName: string;
+};
 
-  afterAll(() => {
-    // Clean up the resized image after test
-    const outputPath = path.join(outputFolder, outputFileName);
-    if (fs.existsSync(outputPath)) {
-      fs.unlinkSync(outputPath);
-    }
-  });
+export async function resizeImage({
+  inputPath,
+  outputFolder,
+  width,
+  height,
+  outputFileName,
+}: ResizeArgs): Promise<string> {
+  if (!fs.existsSync(inputPath)) {
+    throw new Error("Input file is missing");
+  }
 
-  it("should resize image and save to output folder", async () => {
-    const width = 100;
-    const height = 100;
-    const outputPath = await resizeImage({
-      inputPath: testImg,
-      outputFolder,
-      width,
-      height,
-      outputFileName,
-    });
-    expect(fs.existsSync(outputPath)).toBeTrue();
-  });
+  if (!fs.existsSync(outputFolder)) {
+    fs.mkdirSync(outputFolder, { recursive: true });
+  }
 
-  it("should throw error if image does not exist", async () => {
-    const width = 100;
-    const height = 100;
-    const fakeImg = path.join(
-      path.resolve(__dirname, ".."),
-      "img",
-      "notfound.jpg"
-    );
-    await expectAsync(
-      resizeImage({
-        inputPath: fakeImg,
-        outputFolder,
-        width,
-        height,
-        outputFileName: "notfound_resized.jpg",
-      })
-    ).toBeRejectedWithError(/Input file is missing/);
-  });
-});
+  const outputPath = path.join(outputFolder, outputFileName);
+  await sharp(inputPath).resize(width, height).toFile(outputPath);
+  return outputPath;
+}

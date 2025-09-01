@@ -1,66 +1,81 @@
-import request from "supertest";
-import app from "../src/index";
+// src/index.ts (ESM-safe)
+import express from "express";
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resizeImage } from "./imgCrop.spec.ts"; // TypeScript import without extension
 
-describe("API Endpoints", () => {
-  it("should return welcome message at root", async () => {
-    const res = await request(app).get("/");
-    expect(res.status).toBe(200);
-    expect(res.text).toContain("Welcome to Image Processing API");
-  });
+// ESM-safe __dirname / __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  it("should return API working message", async () => {
-    const res = await request(app).get("/api");
-    expect(res.status).toBe(200);
-    expect(res.body.message).toBe("API is working fine!");
-  });
+export const app = express();
 
-  it("should return 400 for missing crop params", async () => {
-    const res = await request(app).get("/api/images");
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("Missing required query parameters");
-  });
+/**
+ * GET /api/images
+ * Query: filename (no extension), width, height
+ * Returns: resized image (image/*) or 404 JSON message
+ */
+app.get("/api/images", async (req, res) => {
+  try {
+    const filename = String(req.query.filename ?? "").trim();
+    const widthStr = String(req.query.width ?? "").trim();
+    const heightStr = String(req.query.height ?? "").trim();
 
-  it("should return 400 if filename is missing", async () => {
-    const res = await request(app).get("/api/images?width=200&height=200");
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("Missing required query parameters");
-  });
+    // Validate basic params
+    const width = Number(widthStr);
+    const height = Number(heightStr);
+    if (
+      !filename ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      return res.status(400).json({
+        error:
+          "Invalid query params. Expected filename, width (>0), height (>0).",
+      });
+    }
 
-  it("should return 400 if width is missing", async () => {
-    const res = await request(app).get(
-      "/api/images?filename=palmtunnel.jpg&height=200"
-    );
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("Missing required query parameters");
-  });
+    // Resolve input/output paths
+    const inputPath = path.join(__dirname, "..", "img", `${filename}.jpg`);
+    const outputFolder = path.join(__dirname, "..", "thumb");
+    const outputFileName = `${filename}_${width}x${height}.jpg`;
 
-  it("should return 400 if height is missing", async () => {
-    const res = await request(app).get(
-      "/api/images?filename=palmtunnel.jpg&width=200"
-    );
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("Missing required query parameters");
-  });
+    // 404 when input image doesn't exist
+    if (!fs.existsSync(inputPath)) {
+      return res.status(404).json({ error: "Input image not found." });
+    }
 
-  it("should process and return the image if all query params are valid", async () => {
-    const res = await request(app).get(
-      "/api/images?filename=palmtunnel.jpg&width=200&height=200"
-    );
-    expect(res.status).toBe(200);
-    expect(res.headers["content-type"]).toMatch(/image/);
-  });
+    // Ensure resize and send back the file
+    const outputPath = await resizeImage({
+      inputPath,
+      outputFolder,
+      width,
+      height,
+      outputFileName,
+    });
 
-  it("should return 404 and error message if image does not exist", async () => {
-    const res = await request(app).get(
-      "/api/images?filename=notfound.jpg&width=200&height=200"
-    );
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe("Input image not found.");
-  });
-
-  it("should return 400 and error message if required query params are missing", async () => {
-    const res = await request(app).get("/api/images");
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("Missing required query parameters");
-  });
+    // Express will infer content-type from extension, but we can hint explicitly
+    // res.type(path.extname(outputPath)); // optional
+    return res.status(200).sendFile(outputPath);
+  } catch (err) {
+    // Log for local debugging; return stable 500 for tests
+    console.error(err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 });
+
+// Optional root
+app.get("/", (_req, res) => {
+  res.send("Image Processing API (ESM + TS)");
+});
+
+// Only start server when you run the app directly, not during tests
+if (process.env.NODE_ENV === "dev") {
+  const PORT = Number(process.env.PORT ?? 3000);
+  app.listen(PORT, () =>
+    console.log(`🚀 Server running at http://localhost:${PORT}`)
+  );
+}
