@@ -19,7 +19,7 @@ describe("resizeImage", () => {
   ];
   const testImg = path.join(
     path.resolve(__dirname, "..", "img"),
-    availableImages[0]
+    availableImages[0],
   );
   const outputFolder = path.join(path.resolve(__dirname, "..", "thumb"));
   const outputFileName = "test_resized.jpg";
@@ -50,7 +50,7 @@ describe("resizeImage", () => {
     const height = 100;
     const fakeImg = path.join(
       path.resolve(__dirname, "..", "img"),
-      "notfound.jpg"
+      "notfound.jpg",
     );
     await expectAsync(
       resizeImage({
@@ -59,7 +59,7 @@ describe("resizeImage", () => {
         width,
         height,
         outputFileName: "notfound_resized.jpg",
-      })
+      }),
     ).toBeRejectedWithError(/Input file is missing/);
   });
 });

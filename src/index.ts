@@ -3,64 +3,79 @@ import express from "express";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { resizeImage } from "./imgCrop.ts"; // ts-node/esm => .ts extension
+import { resizeImage } from "./imgCrop.ts";
 
-// ESM-safe __dirname / __filename
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PORT = 3000;
+
 export const app = express();
 
-/**
- * GET /api/images
- * Query: filename (WITH extension, e.g. test.jpg), width, height
- * Returns: resized image (image/*) or 4xx JSON.
- */
+// Allowed filename pattern: base name (letters/digits/_/-) + one of the allowed extensions
+const FILENAME_RE = /^[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/i;
+
+// Centralized helper to return consistent 400s
+function badRequest(res: express.Response, details: string[]) {
+  return res.status(400).json({
+    error: "ValidationError",
+    message: "Invalid query parameters.",
+    details, // array of specific messages
+  });
+}
+
 app.get("/api/images", async (req, res) => {
   try {
-    const filenameRaw = String(req.query.filename ?? "").trim();
-    const widthRaw = req.query.width;
-    const heightRaw = req.query.height;
+    const filenameRaw = (req.query.filename ?? "").toString().trim();
+    const widthRaw = (req.query.width ?? "").toString().trim();
+    const heightRaw = (req.query.height ?? "").toString().trim();
 
-    // Missing required keys
-    if (!filenameRaw || widthRaw === undefined || heightRaw === undefined) {
-      return res.status(400).json({
-        error: "Missing required query parameters: filename, width, height",
-      });
+    const details: string[] = [];
+
+    // 1) Missing checks
+    if (!filenameRaw) details.push("filename is required");
+    if (!widthRaw) details.push("width is required");
+    if (!heightRaw) details.push("height is required");
+
+    if (details.length) return badRequest(res, details);
+
+    // 2) Filename validation
+    if (!FILENAME_RE.test(filenameRaw)) {
+      details.push(
+        "filename must be a base name with extension .jpg, .jpeg, .png, or .webp (e.g., fjord.jpg); no folders or spaces",
+      );
     }
 
+    // 3) Numeric validation (integers > 0, and sanity upper bound to prevent abuse)
     const width = Number(widthRaw);
     const height = Number(heightRaw);
 
-    // Bad types or values
     if (!Number.isFinite(width) || !Number.isFinite(height)) {
-      return res
-        .status(400)
-        .json({ error: "width and height must be numbers" });
-    }
-    if (
-      !Number.isInteger(width) ||
-      !Number.isInteger(height) ||
-      width <= 0 ||
-      height <= 0
-    ) {
-      return res
-        .status(400)
-        .json({ error: "width and height must be positive integers" });
+      details.push("width and height must be numeric");
+    } else {
+      if (!Number.isInteger(width) || width <= 0) {
+        details.push("width must be a positive integer");
+      }
+      if (!Number.isInteger(height) || height <= 0) {
+        details.push("height must be a positive integer");
+      }
+      // Optional safety limit (adjust as you like)
+      const MAX_DIM = 10000;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        details.push(`width and height must be ≤ ${MAX_DIM}`);
+      }
     }
 
-    // Expect filename WITH extension (e.g. test.jpg)
-    const filename = filenameRaw;
-    const inputPath = path.join(__dirname, "..", "img", filename);
+    if (details.length) return badRequest(res, details);
 
-    // 404 early if source missing
+    // 4) Resolve paths & existence
+    const inputPath = path.join(__dirname, "..", "img", filenameRaw);
     if (!fs.existsSync(inputPath)) {
-      return res.status(404).json({ error: "Input image not found." });
+      return res
+        .status(404)
+        .json({ error: "NotFound", message: "Input image not found." });
     }
 
-    // Ensure output folder and resize
-    const ext = path.extname(filename); // .jpg
-    const base = path.basename(filename, ext); // test
+    const ext = path.extname(filenameRaw);
+    const base = path.basename(filenameRaw, ext);
     const outputFolder = path.join(__dirname, "..", "thumb");
     const outputFileName = `${base}_${width}x${height}${ext}`;
 
@@ -72,26 +87,30 @@ app.get("/api/images", async (req, res) => {
       outputFileName,
     });
 
-    // Always use sendFile callback so errors don't hang
     return res.sendFile(outputPath, (err) => {
-      if (err) {
+      if (err && !res.headersSent) {
         console.error("sendFile error:", err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Image processing failed" });
-        }
+        res.status(500).json({
+          error: "ImageProcessingFailed",
+          message: "Image processing failed",
+        });
       }
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Image processing failed" });
+    return res.status(500).json({
+      error: "ImageProcessingFailed",
+      message: "Image processing failed",
+    });
   }
 });
 
-// Optional root
-app.get("/", (_req, res) => {
-  res.send("Image Processing API (ESM + TS)");
-});
+// Optional home
+app.get("/", (_req, res) => res.send("Image Processing API (ESM + TS)"));
 
+// Start only outside tests
+
+const PORT: number = 3000;
 app.listen(PORT, () =>
   console.log(`🚀 Server running at http://localhost:${PORT}`),
 );
