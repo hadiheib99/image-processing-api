@@ -1,58 +1,43 @@
-import express, { Request, Response } from "express";
-
-import fs from "fs";
-// import { fileURLToPath } from "url";
-import { resizeImage } from "./imgCrop.ts";
+// src/index.ts
+import express from "express";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { resizeImage } from "./imgCrop.ts"; // ts-node/esm => .ts extension
 
+// ESM-safe __dirname / __filename
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PORT = 3000;
+export const app = express();
 
-const app = express();
-const port = 3000;
-
-app.use((req, res, next) => {
-  res.setHeader("Cache-Control", "no-store");
-  next();
-});
-// Simple root endpoint
-app.get("/", (req: Request, res: Response) => {
-  res.status(200).send("Welcome to Image Processing API!");
-});
-
-// Example API endpoint
-app.get("/api", (req: Request, res: Response) => {
-  res.status(200).json({ message: "API is working fine!" });
-});
-// Endpoint to process and resize image, then save to thumb folder
-// Example usage:
-// http://localhost:3000/api/images?filename=palmtunnel.jpg&width=200&height=200
+/**
+ * GET /api/images
+ * Query: filename (WITH extension, e.g. test.jpg), width, height
+ * Returns: resized image (image/*) or 4xx JSON.
+ */
 app.get("/api/images", async (req, res) => {
   try {
-    const filename = String(req.query.filename ?? "").trim();
-    const width = Number(req.query.width);
-    const height = Number(req.query.height);
+    const filenameRaw = String(req.query.filename ?? "").trim();
+    const widthRaw = req.query.width;
+    const heightRaw = req.query.height;
 
-    // Missing required params
-    if (
-      !filename ||
-      req.query.width === undefined ||
-      req.query.height === undefined
-    ) {
+    // Missing required keys
+    if (!filenameRaw || widthRaw === undefined || heightRaw === undefined) {
       return res.status(400).json({
         error: "Missing required query parameters: filename, width, height",
       });
     }
 
-    // Not numbers
+    const width = Number(widthRaw);
+    const height = Number(heightRaw);
+
+    // Bad types or values
     if (!Number.isFinite(width) || !Number.isFinite(height)) {
       return res
         .status(400)
         .json({ error: "width and height must be numbers" });
     }
-
-    // Non-positive or non-integer (choose your rule; here we enforce positive integers)
     if (
       !Number.isInteger(width) ||
       !Number.isInteger(height) ||
@@ -64,15 +49,51 @@ app.get("/api/images", async (req, res) => {
         .json({ error: "width and height must be positive integers" });
     }
 
-    // ... keep the rest of your logic (resolve paths, exists check, resize, sendFile) ...
+    // Expect filename WITH extension (e.g. test.jpg)
+    const filename = filenameRaw;
+    const inputPath = path.join(__dirname, "..", "img", filename);
+
+    // 404 early if source missing
+    if (!fs.existsSync(inputPath)) {
+      return res.status(404).json({ error: "Input image not found." });
+    }
+
+    // Ensure output folder and resize
+    const ext = path.extname(filename); // .jpg
+    const base = path.basename(filename, ext); // test
+    const outputFolder = path.join(__dirname, "..", "thumb");
+    const outputFileName = `${base}_${width}x${height}${ext}`;
+
+    const outputPath = await resizeImage({
+      inputPath,
+      outputFolder,
+      width,
+      height,
+      outputFileName,
+    });
+
+    // Always use sendFile callback so errors don't hang
+    return res.sendFile(outputPath, (err) => {
+      if (err) {
+        console.error("sendFile error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Image processing failed" });
+        }
+      }
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Image processing failed" });
   }
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`🚀 Server running at http://localhost:${port}`);
+// Optional root
+app.get("/", (_req, res) => {
+  res.send("Image Processing API (ESM + TS)");
 });
+
+app.listen(PORT, () =>
+  console.log(`🚀 Server running at http://localhost:${PORT}`)
+);
+
 export default app;
