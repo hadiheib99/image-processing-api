@@ -8,7 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["node", "jasmine"],
-    "allowImportingTsExtensions": true, // <-- add this
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
   "include": ["src/**/*.ts", "spec/**/*.ts"]
